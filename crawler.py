@@ -4,23 +4,35 @@
 # Institute of Computing Science
 # Laboratory of Intelligent Decision Support Systems
 # -------------------------------------------------------------------------
-import urllib.request as req
-import sys
+import abc
 import os
+import urllib.request as req
 from urllib.parse import urlparse
-
-# -------------------------------------------------------------------------
-### generatePolicy classes
-
-
-# Dummy fetch policy. Returns first element. Does nothing ;)
-import requests
 
 from parser import HTMLParser
 
 
-class Dummy_Policy:
-    def getURL(self, c, iteration):
+# -------------------------------------------------------------------------
+# generatePolicy classes
+# Dummy fetch policy. Returns first element. Does nothing ;)
+
+class Policy(abc.ABC):
+
+    @abc.abstractmethod
+    def getURL(self, c, _):
+        pass
+
+    @abc.abstractmethod
+    def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
+        pass
+
+    @abc.abstractmethod
+    def reset(self):
+        pass
+
+
+class Dummy_Policy(Policy):
+    def getURL(self, c, _):
         if len(c.URLs) == 0:
             return None
         else:
@@ -29,42 +41,78 @@ class Dummy_Policy:
     def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
         pass
 
-class LIFO_Policy:
+    def reset(self):
+        pass
 
+
+class LIFO_Policy(Policy):
     queue = None
 
-    def getURL(self, c, iteration):
+    def getURL(self, c, _):
         if self.queue is None:
             self.queue = c.seedURLs.copy()
         if not self.queue:
             return None
         return self.queue.pop()
 
-
-    def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
+    def updateURLs(self, c, retrievedURLs, *unused):
         def extract_filename(url):
             return os.path.basename(urlparse(url).path)
+
         retrievedURLs = sorted(retrievedURLs, key=lambda url: extract_filename(url))
         self.queue += retrievedURLs
 
-class FIFO_Policy:
+    def reset(self):
+        pass
 
+
+class FIFO_Policy(Policy):
     queue = None
 
-    def getURL(self, c, iteration):
+    def getURL(self, c, _):
         if self.queue is None:
             self.queue = c.seedURLs.copy()
         if not self.queue:
             return None
         return self.queue.pop(0)
 
-
-    def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
+    def updateURLs(self, _, retrievedURLs, *unused):
         def extract_filename(url):
             return os.path.basename(urlparse(url).path)
+
         retrievedURLs = sorted(retrievedURLs, key=lambda url: extract_filename(url))
         self.queue += retrievedURLs
 
+    def reset(self):
+        pass
+
+
+class LIFO_Cycle_Policy(Policy):
+    queue = None
+    fetched = set()
+
+    def getURL(self, c, _):
+        if self.queue is None:
+            self.queue = c.seedURLs.copy()
+        if not self.queue:
+            return None
+        next_url = self.queue.pop()
+        while next_url in self.fetched:
+            if not self.queue:  # empty list
+                return None
+            next_url = self.queue.pop()
+        self.fetched.add(next_url)
+        return next_url
+
+    def updateURLs(self, c, retrievedURLs, *unused):
+        def extract_filename(url):
+            return os.path.basename(urlparse(url).path)
+
+        retrievedURLs = sorted(retrievedURLs, key=lambda url: extract_filename(url))
+        self.queue += retrievedURLs
+
+    def reset(self):
+        self.fetched = set()
 
 
 # -------------------------------------------------------------------------
@@ -74,7 +122,7 @@ class Container:
         # The name of the crawler"
         self.crawlerName = "IRbot"
         # Example ID
-        self.example = "exercise1"
+        self.example = "exercise2"
         # Root (host) page
         self.rootPage = "http://www.cs.put.poznan.pl/mtomczyk/ir/lab1/" + self.example
         # Initial links to visit
@@ -87,7 +135,7 @@ class Container:
         # Incoming URLs (to <- from; set of incoming links)
         self.incomingURLs = {}
         # Class which maintains a queue of urls to visit.
-        self.generatePolicy = FIFO_Policy()
+        self.generatePolicy = LIFO_Cycle_Policy()
         # Page (URL) to be fetched next
         self.toFetch = None
         # Number of iterations of a crawler.
@@ -130,6 +178,7 @@ def main():
             if c.debug:
                 print("   No page to fetch!")
             c.toFetch = c.seedURLs[0]
+            c.generatePolicy.reset()
 
         # Generate: it downloads html page under "toFetch URL"
         page = fetch(c)
@@ -233,6 +282,7 @@ def fetch(c):
 # Remove wrong URL (TODO)
 def removeWrongURL(c):
     c.toFetch = c.toFetch[1:]
+
 
 # -------------------------------------------------------------------------
 # Parse this page and retrieve text (whole page) and URLs (TODO)
