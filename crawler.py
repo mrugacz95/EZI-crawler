@@ -35,7 +35,7 @@ class LIFO_Policy:
 
     def getURL(self, c, iteration):
         if self.queue is None:
-            self.queue = c.seedURLs
+            self.queue = c.seedURLs.copy()
         if not self.queue:
             return None
         return self.queue.pop()
@@ -53,7 +53,7 @@ class FIFO_Policy:
 
     def getURL(self, c, iteration):
         if self.queue is None:
-            self.queue = c.seedURLs
+            self.queue = c.seedURLs.copy()
         if not self.queue:
             return None
         return self.queue.pop(0)
@@ -129,7 +129,7 @@ def main():
         if c.toFetch is None:
             if c.debug:
                 print("   No page to fetch!")
-            continue
+            c.toFetch = c.seedURLs[0]
 
         # Generate: it downloads html page under "toFetch URL"
         page = fetch(c)
