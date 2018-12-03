@@ -7,13 +7,18 @@
 import urllib.request as req
 import sys
 import os
-
+from urllib.parse import urlparse
 
 # -------------------------------------------------------------------------
 ### generatePolicy classes
 
 
 # Dummy fetch policy. Returns first element. Does nothing ;)
+import requests
+
+from parser import HTMLParser
+
+
 class Dummy_Policy:
     def getURL(self, c, iteration):
         if len(c.URLs) == 0:
@@ -23,6 +28,24 @@ class Dummy_Policy:
 
     def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
         pass
+
+class LIFO_Policy:
+
+    queue = None
+
+    def getURL(self, c, iteration):
+        if self.queue == None:
+            self.queue = c.seedURLs
+        if not self.queue:
+            return None
+        return self.queue.pop()
+
+
+    def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
+        def extract_filename(url):
+            return os.path.basename(urlparse(url).path)
+        retrievedURLs = sorted(retrievedURLs, key=lambda url: extract_filename(url))
+        self.queue += retrievedURLs
 
 
 # -------------------------------------------------------------------------
@@ -39,17 +62,17 @@ class Container:
         self.seedURLs = ["http://www.cs.put.poznan.pl/mtomczyk/ir/lab1/"
                          + self.example + "/s0.html"]
         # Maintained URLs
-        self.URLs = set([])
+        self.URLs = set()
         # Outgoing URLs (from -> list of outgoing links)
         self.outgoingURLs = {}
         # Incoming URLs (to <- from; set of incoming links)
         self.incomingURLs = {}
         # Class which maintains a queue of urls to visit.
-        self.generatePolicy = Dummy_Policy()
+        self.generatePolicy = LIFO_Policy()
         # Page (URL) to be fetched next
         self.toFetch = None
         # Number of iterations of a crawler.
-        self.iterations = 3
+        self.iterations = 10
 
         # If true: store all crawled html pages in the provided directory.
         self.storePages = True
@@ -84,7 +107,7 @@ def main():
             print("=====================================================")
         # Prepare a next page to be fetched
         generate(c, iteration)
-        if (c.toFetch == None):
+        if c.toFetch == None:
             if c.debug:
                 print("   No page to fetch!")
             continue
