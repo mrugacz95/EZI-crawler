@@ -34,7 +34,7 @@ class LIFO_Policy:
     queue = None
 
     def getURL(self, c, iteration):
-        if self.queue == None:
+        if self.queue is None:
             self.queue = c.seedURLs
         if not self.queue:
             return None
@@ -46,6 +46,25 @@ class LIFO_Policy:
             return os.path.basename(urlparse(url).path)
         retrievedURLs = sorted(retrievedURLs, key=lambda url: extract_filename(url))
         self.queue += retrievedURLs
+
+class FIFO_Policy:
+
+    queue = None
+
+    def getURL(self, c, iteration):
+        if self.queue is None:
+            self.queue = c.seedURLs
+        if not self.queue:
+            return None
+        return self.queue.pop(0)
+
+
+    def updateURLs(self, c, retrievedURLs, retrievedURLsWD, iteration):
+        def extract_filename(url):
+            return os.path.basename(urlparse(url).path)
+        retrievedURLs = sorted(retrievedURLs, key=lambda url: extract_filename(url))
+        self.queue += retrievedURLs
+
 
 
 # -------------------------------------------------------------------------
@@ -68,7 +87,7 @@ class Container:
         # Incoming URLs (to <- from; set of incoming links)
         self.incomingURLs = {}
         # Class which maintains a queue of urls to visit.
-        self.generatePolicy = LIFO_Policy()
+        self.generatePolicy = FIFO_Policy()
         # Page (URL) to be fetched next
         self.toFetch = None
         # Number of iterations of a crawler.
@@ -107,7 +126,7 @@ def main():
             print("=====================================================")
         # Prepare a next page to be fetched
         generate(c, iteration)
-        if c.toFetch == None:
+        if c.toFetch is None:
             if c.debug:
                 print("   No page to fetch!")
             continue
@@ -115,7 +134,7 @@ def main():
         # Generate: it downloads html page under "toFetch URL"
         page = fetch(c)
 
-        if page == None:
+        if page is None:
             if c.debug:
                 print("   Unexpected error; skipping this page")
             removeWrongURL(c)
@@ -184,7 +203,7 @@ def inject(c):
 # Produce next URL to be fetched (DONE)
 def generate(c, iteration):
     url = c.generatePolicy.getURL(c, iteration)
-    if url == None:
+    if url is None:
         if c.debug:
             print("   Fetch: error")
         c.toFetch = None
