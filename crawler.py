@@ -190,17 +190,20 @@ def fetch(c):
 
 # Remove wrong URL (TODO)
 def removeWrongURL(c):
-    # TODO
-    pass
-
+    def is_correct(url):
+        response = requests.get('http://google.com')
+        return response.status_code < 400
+    c.toFetch = [url for url in c.toFetch if is_correct(url)]
 
 # -------------------------------------------------------------------------
 # Parse this page and retrieve text (whole page) and URLs (TODO)
 def parse(c, page, iteration):
     # data to be saved (DONE)
     htmlData = page.read()
-    # obtained URLs (TODO)
-    retrievedURLs = set([])
+    # obtained URLs (DONE)
+    parser = HTMLParser(htmlData)
+    parser.handlestarttag()
+    retrievedURLs = set(parser.outputlist)
     if c.debug:
         print("   Extracted " + str(len(retrievedURLs)) + " links")
 
@@ -214,10 +217,9 @@ def getNormalisedURLs(retrievedURLs):
 
 
 # -------------------------------------------------------------------------
-# Remove duplicates (duplicates) (TODO)
+# Remove duplicates (duplicates) (DONE)
 def removeDuplicates(c, retrievedURLs):
-    # TODO
-    return retrievedURLs
+    return list(set(retrievedURLs - set(c.URLs)))
 
 
 # -------------------------------------------------------------------------
